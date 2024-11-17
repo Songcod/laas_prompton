@@ -3,3 +3,6 @@
 
 # 특정 디렉토리
 /api/
+
+# JSON 파일 무시
+db3clothbtitest-b2ab2e525277.json
