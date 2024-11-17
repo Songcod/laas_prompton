@@ -1,5 +1,5 @@
-# python api_googlesheet.py로 실행
-
+import os
+import json
 from flask import Flask, request, jsonify
 from googleapiclient.discovery import build
 from google.oauth2.service_account import Credentials
@@ -7,16 +7,17 @@ import pandas as pd
 
 app = Flask(__name__)
 
-DEFAULT_SHEET_ID = '1-FrSfYWgFkLvZ-AfqggY0-sXhZbATbGaCWXYhzPPf5Q'
-SERVICE_ACCOUNT_PATH = 'db3clothbtitest-b2ab2e525277.json'
+# 환경 변수에서 민감한 정보 가져오기
+DEFAULT_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")  # 스프레드시트 ID
+SERVICE_ACCOUNT_KEY = os.getenv("SERVICE_ACCOUNT_KEY")  # 서비스 계정 JSON 데이터
 
-def read_google_sheet(sheet_id, service_account_path, sheet_name):
-    """
-    Google Sheets 데이터를 읽고 빈 셀 정보를 반환하는 함수
-    """
-    # 서비스 계정 인증
-    credentials = Credentials.from_service_account_file(
-        service_account_path,
+def read_google_sheet(sheet_id, service_account_key, sheet_name):
+    # JSON 데이터를 환경 변수에서 불러오기
+    service_account_info = json.loads(service_account_key)
+
+    # Google API 인증
+    credentials = Credentials.from_service_account_info(
+        service_account_info,
         scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
     )
     service = build('sheets', 'v4', credentials=credentials)
@@ -60,17 +61,15 @@ def read_google_sheet(sheet_id, service_account_path, sheet_name):
 
 @app.route('/read-google-sheet/<sheet_name>', methods=['GET'])
 def handle_read_google_sheet(sheet_name):
-    """
-    Google Sheets 데이터를 읽고 빈 셀 정보를 반환하는 API
-    """
     try:
-        # Google Sheets 데이터 읽기
-        result = read_google_sheet(DEFAULT_SHEET_ID, SERVICE_ACCOUNT_PATH, sheet_name)
+        result = read_google_sheet(DEFAULT_SHEET_ID, SERVICE_ACCOUNT_KEY, sheet_name)
         return jsonify(result), 200
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 400
     except Exception as e:
         return jsonify({"error": "An unexpected error occurred", "details": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+# Flask 앱을 서버리스로 실행하기 위한 entry point
+def handler(event, context):
+    from serverless_wsgi import handle_request
+    return handle_request(app, event, context)
