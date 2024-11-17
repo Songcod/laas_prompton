@@ -1,5 +1,6 @@
 Flask==2.3.2
-google-api-python-client==2.153.0
-google-auth==2.21.0
+google_api_python_client==2.153.0
 pandas==2.0.3
-python-dotenv==1.0.0
+protobuf==5.28.3
+python-dotenv==1.0.1
+serverless_wsgi==3.0.5
