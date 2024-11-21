@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오비스홀 공간 대여 시스템</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            width: 100%;
+            background-color: #202123;
+            color: #ffffff;
+            padding: 15px 0;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            position: fixed;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .container {
+            width: 700px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            margin-top: 80px;
+        }
+
+        .min-people-section {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .min-people-section input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column; /* 메시지를 위에서 아래로 정렬 */
+            align-items: stretch; /* 각 메시지가 자체 align-self로 제어 */
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            margin-bottom: 10px;
+        }
+
+
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            line-height: 1.5;
+            max-width: 60%; /* 메시지 박스의 최대 너비 설정 */
+            word-wrap: break-word; /* 긴 텍스트 줄바꿈 */
+            margin: 10px 0; /* 위아래 여백만 설정 */
+        }
+
+        .user {
+            background-color: #e2e3e5; /* 연한 회색 배경 */
+            margin-left: auto; /* 오른쪽 끝으로 정렬 */
+            text-align: right; /* 텍스트 오른쪽 정렬 */
+            align-self: flex-end; /* 부모 컨테이너 기준 오른쪽 정렬 */
+        }
+
+        .assistant {
+            background-color: rgba(0, 0, 0, 0); /* 연한 배경 */
+            margin-right: auto; /* 왼쪽 끝으로 정렬 */
+            text-align: left; /* 텍스트 왼쪽 정렬 */
+            align-self: flex-start; /* 부모 컨테이너 기준 왼쪽 정렬 */
+        }
+
+
+        .chat-input-section {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <header>오비스홀 공간 대여 시스템</header>
+    <div class="container">
+        <!-- 최소 인원 입력 영역 -->
+        <div class="min-people-section">
+            <input id="minpeople" type="text" placeholder="최소 인원 수를 입력하세요(숫자만 입력)">
+        </div>
+        <!-- 채팅 메시지 표시 영역 -->
+        <div id="chat-container" class="chat-container">
+            <div class="message assistant">{{ initial_message }}</div>
+        </div>
+        <!-- 메시지 입력 및 버튼 영역 -->
+        <div class="chat-input-section">
+            <input id="userchat" type="text" placeholder="메시지를 입력하세요">
+            <button onclick="sendMessage()">보내기</button>
+        </div>
+        <footer>경희대학교 정보처 콜센터: 02-961-0304</footer>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+
+        async function sendMessage() {
+            const minPeopleInput = document.getElementById('minpeople').value.trim();
+            const userChatInput = document.getElementById('userchat').value.trim();
+            const username = new URLSearchParams(window.location.search).get('username');
+
+            // 필수 입력값 검증
+            if (!username) {
+                alert("사용자 정보가 없습니다. 다시 로그인해주세요.");
+                window.location.href = '/';
+                return;
+            }
+            // 필수 입력값 검증
+            if (!minPeopleInput) {
+                alert("최소 사용 인원을 입력하세요.");
+                return;
+            }
+            if (!userChatInput) {
+                alert("메시지를 입력하세요.");
+                return;
+            }
+
+            // 사용자 메시지 추가
+            const userMessage = document.createElement('div');
+            userMessage.classList.add('message', 'user');
+            userMessage.innerText = userChatInput;
+            chatContainer.appendChild(userMessage);
+
+            // 서버에 메시지 전달
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        minPeople: minPeopleInput,
+                        userchat: userChatInput
+                    })
+                });
+
+                if (!response.ok) throw new Error("응답 오류");
+
+                const data = await response.json();
+
+                // 챗봇 응답 추가
+                const assistantMessage = document.createElement('div');
+                assistantMessage.classList.add('message', 'assistant');
+                assistantMessage.innerText = data.content;
+                chatContainer.appendChild(assistantMessage);
+
+                // 스크롤 맨 아래로 이동
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            } catch (error) {
+                console.error("메시지 전송 오류:", error);
+            }
+
+            // 입력 필드 초기화
+            document.getElementById('userchat').value = '';
+        }
+    </script>
+</body>
+
+</html>
