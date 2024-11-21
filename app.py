@@ -82,7 +82,7 @@ def read_google_sheet(sheet_id, sheet_name):
     except Exception as e:
         raise RuntimeError(f"Google Sheets API 호출 중 예기치 못한 오류가 발생했습니다: {str(e)}")
     
-def save_user_messages_to_sheet(sheet_id, sheet_name, user_messages):
+def append_row_to_sheet(sheet_id, sheet_name, row_data):
     try:
         # JSON 데이터를 환경 변수에서 로드
         service_account_info = json.loads(SERVICE_ACCOUNT_KEY)
@@ -95,39 +95,26 @@ def save_user_messages_to_sheet(sheet_id, sheet_name, user_messages):
         )
         service = build('sheets', 'v4', credentials=credentials)
 
-        # 데이터를 저장할 Google Sheet 범위 지정
+        # 데이터를 추가할 Google Sheet 범위 지정
         range_name = f"{sheet_name}!A1"
 
-        # Google Sheet에 저장할 데이터 형식 변환
-        data_to_write = [["Username", "Role", "Content"]]  # 헤더
-        for username, messages in user_messages.items():
-            for message in messages:
-                data_to_write.append([username, message["role"], message["content"]])
-
-        # 데이터 업데이트 요청 생성
+        # 데이터 추가 요청 생성
         body = {
-            "values": data_to_write
+            "values": [row_data]  # 단일 행을 리스트로 감싸야 합니다
         }
-        response = service.spreadsheets().values().update(
+        response = service.spreadsheets().values().append(
             spreadsheetId=sheet_id,
             range=range_name,
-            valueInputOption="RAW",  # 데이터 입력 옵션: RAW 또는 USER_ENTERED
+            valueInputOption="RAW",  # 데이터 입력 방식: RAW 또는 USER_ENTERED
+            insertDataOption="INSERT_ROWS",  # 행 삽입 방식
             body=body
         ).execute()
 
-        print(f"Data successfully saved to Google Sheet: {response}")
+        print(f"Row successfully added to Google Sheet: {response}")
         return response
 
     except Exception as e:
-        raise RuntimeError(f"Error saving user messages to Google Sheet: {str(e)}")
-
-# 종료 시 데이터를 저장하는 함수
-def save_messages_on_exit():
-    try:
-        save_user_messages_to_sheet(DEFAULT_SHEET_ID, "대화기록", user_messages)
-        print("User messages successfully saved on exit.")
-    except Exception as e:
-        print(f"Error while saving messages on exit: {e}")
+        raise RuntimeError(f"Error appending row to Google Sheet: {str(e)}")
 
 
 Authentication_dict = {'송정현' : '2022103121',
@@ -156,8 +143,7 @@ def login():
         if Authentication_dict[username] == student_id:
             # 사용자별 메시지 초기화
             student_info = f'{username}({student_id})'
-            if student_info not in user_messages:
-                user_messages[student_info] = []
+            user_messages[student_info] = []  # 항상 초기화
 
 
             # 리다이렉트하여 /chat?username=홍길동 경로로 이동
@@ -237,6 +223,11 @@ def chat():
         # 최소 사용 인원과 날짜 확인
         if not min_people or not userchat:
             return jsonify({"error": "최소 사용 인원과 원하는 날짜 모두 필요합니다."}), 400
+        
+        # 사용자 입력을 Google Sheets에 저장
+        user_input_row = [username, "user", f"최소 사용 인원: {min_people}, 날짜: {userchat}"]
+        append_row_to_sheet(DEFAULT_SHEET_ID, "대화기록", user_input_row)
+
 
         # 사용자별 메시지 기록 가져오기 (없으면 초기화)
         if username not in user_messages:
@@ -257,6 +248,11 @@ def chat():
             if response.status_code == 200:
                 response_json = response.json()
                 assistant_message_content = response_json['choices'][0]['message']['content']
+
+                        # 어시스턴트 응답 저장
+                assistant_response_row = [username, "assistant", assistant_message_content]
+                append_row_to_sheet(DEFAULT_SHEET_ID, "대화기록", assistant_response_row)
+
 
                 if '강의실을 찾았습니다.' in str(assistant_message_content):
                     match = re.search(r'\(.*?\)', str(assistant_message_content))
@@ -280,8 +276,5 @@ def chat():
         except requests.exceptions.RequestException as e:
             return jsonify({"error": "Request failed", "details": str(e)}), 500
         
-# atexit에 등록
-atexit.register(save_messages_on_exit)
-
 if __name__ == '__main__':  
     app.run('0.0.0.0', port=3000)
