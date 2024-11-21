@@ -86,8 +86,11 @@ Authentication_dict = {'송정현' : '2022103121',
                        '김가현' : '2023102759'
                        }
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST', 'HEAD'])
 def login():
+    if request.method == 'HEAD':
+        return '', 200  # 빈 응답 반환
+    
     if request.method == 'GET':
         # 로그인 페이지 렌더링
         return render_template('login.html')  # 로그인 페이지 반환
@@ -113,12 +116,17 @@ def login():
         else:
             # 데이터가 유효하지 않을 경우 오류 반환
             return jsonify({"success": False, "message": "사용자 이름과 학번을 입력해주세요."}), 400
-
+        # 추가적인 반환을 명시
+        
+    return jsonify({"error": "Method not allowed"}), 405
 # 전역 변수 선언: 사용자별 메시지 저장
 user_messages = {}  # {username: [Messages]}
 
-@app.route('/chat', methods=['GET', 'POST'])
+
+@app.route('/chat',  methods=['GET', 'POST', 'HEAD'])
 def chat():
+    if request.method == 'HEAD':
+        return '', 200  # 빈 응답 반환
 
     if request.method == 'GET':
         # GET 요청: 초기 메시지를 렌더링
